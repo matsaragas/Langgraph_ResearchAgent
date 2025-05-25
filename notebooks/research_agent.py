@@ -248,3 +248,113 @@ def rag_search(query: str):
     return context_str
 
 
+@tool("final_answer")
+def final_answer(
+        introduction: str,
+        research_steps: str,
+        main_body: str,
+        conclusion: str,
+        sources: str
+):
+    """Return a natural language response to the user in the form
+    of a research report. There are several sections to this report,
+    those are:
+    - `introduction`: a short paragraph introducing the user's questions
+    and the topic we are researching.
+    - `research_steps`: a few bullet points explaining the steps that were
+    taken to research your report
+    - `main_body`: this is where the bulk of high quality and concise
+    information that answer the user's question belongs. It is 3-4
+    paragraphs long in length.
+    - `conclusion`: this is a short single paragraph conclusion providing a
+    concise but sophisticated view on what was found.
+    - `sources`: a bulletpoint list provided detailed sources for all
+    information referenced during the research process
+    """
+    return ""
+
+
+## Initialize the Oracle
+# The oracle LLM is our graph decision maker. It decides which
+# path we should take down our graph. It functions similarly
+# to an agent but is much simpler and reliable.
+
+# Oracle Prompt
+
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+
+system_prompt = """You are the oracle, the great AI decision maker.
+Given the user's query you must decide what to do with it based on the
+list of tools provided to you.
+
+If you see that a tool has been used (in the scratchpad) with a 
+particular query, do NOT use that same tool with the same query again. 
+Also, do NOT use any tool more than twice (ie, if the tool appears
+in the scratchpad twice, do not use it again).
+
+You should aim to collect information from a diverse range of sources 
+before providing the answer to the user. Once you have collected 
+plenty of information to answer the user's questions (stored in the 
+scratchpad) use the final_answer tool.
+"""
+
+prompt = ChatPromptTemplate.from_messages([
+    ("system", system_prompt),
+    MessagesPlaceholder(variable_name="chat_history"),
+    ("user", "{input}"),
+    ("assistant", "scratchpad: {scratchpad}")
+])
+
+
+# Next, we must initialize our llm (gpt-4o) and then create the
+# runnable pipeline of our Oracle. The runnable connects our inputs
+# (the users `input` and `chat_history`) to our prompt, and our
+# prompt to our llm. It is also where we bind our tools to the
+# LLM and enforce function calling via `tool_choice="any"`
+
+from langchain_core.messages import ToolCall, ToolMessage
+from langchain_openai import ChatOpenAI
+
+llm = ChatOpenAI(
+    model="gpt-4o",
+    openai_api_key=os.environ["OPEN_API_KEY"],
+    temperature=0
+)
+
+tools = [
+    rag_search_filter,
+    rag_search,
+    fetch_arxiv,
+    web_search,
+    final_answer
+]
+
+# define a function to transform intermediate_steps from list
+# of AgentAction to scratchpad string
+
+def create_scratchpad(intermediate_steps: list[AgentAction]):
+    research_steps = []
+    for i, action in enumerate(intermediate_steps):
+        if action.log != "TBD":
+            #this was the ToolExecution
+            research_steps.append(
+                f"Tool: {action.tool}, input: {action.tool_input}\n"
+                f"Output: {action.log}"
+            )
+    return "\n---\n".join(research_steps)
+
+oracle = (
+    {
+    "input": lambda x: x["input"],
+    "chat_history": lambda x: x["chat_history"],
+    "scratchpad": lambda x: create_scratchpad(
+        intermediate_steps=x["intermediate_steps"]
+    ),
+    }
+    | prompt
+    | llm.bind_tools(tools, tool_choice="any")
+)
+
+
+
+
