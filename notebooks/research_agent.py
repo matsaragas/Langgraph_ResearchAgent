@@ -356,5 +356,34 @@ oracle = (
 )
 
 
+# Define Nodes for Graph
+
+# We will be passing the tool use decision to our `router` which will route
+# the output to the chose node component to run based on the
+# out.tool_calls[0]["name"] value
+
+
+def run_oracle(state: list):
+    print("run oracle")
+    print(f"intermediate_steps: {state['intermediate_steps']}")
+    out = oracle.invoke(state)
+    tool_name = out.tool_calls[0]["name"]
+    tool_args = out.tool_calls[0]["args"]
+    action_out = AgentAction(
+        tool=tool_name,
+        tool_input=tool_args,
+        log="TBD"
+    )
+    return {
+        "intermediate_steps": [action_out]
+    }
+
+def router(state: list):
+    if isinstance(state["intermediate_steps"], list):
+        return state["intermediate_steps"][-1].tool
+    else:
+        # If we output bad format go to the final answer
+        print("Router invalid format")
+        return "final_answer"
 
 
