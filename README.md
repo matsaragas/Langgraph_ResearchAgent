@@ -171,3 +171,31 @@ for tool_obj in tools:
 graph.add_edge("final_answer", END)
 ```
 
+![Alt text](pictures/search_graph.png)
+
+
+## Invoke the Graph
+```python
+out = runnable.invoke({
+"input": "tell me something interesting about dogs",
+"chat_history": [],
+})
+```
+
+
+So, how it works:
+
+1) `input` and `chat_history` are going as input to the graph
+2) The node called `oracle` uses the method `run_oracle`. The input and chat_history
+are going as input in the 'run_oracle'. Then run oracle decides what tool
+to use to answer the query.
+The `run_oracle` function returns the `intermediate_steps` which here is the 
+action the agent decided to chose.
+3) after the oracle decides, it sends out `AgentAction` output as `intermediate_steps` which 
+is then passed to the `router` to pick up the chosen action/function. Conditional
+edge is used to connect the `source=oracle` with the functions, and `router` is
+used as function `path=router` to determine which node (function) is called next.
+4) After running a function, the graph sends back the output of the functions to the
+`oracle` which decides what to do next:
+     * call another `function/tool`
+     * or go to the `final_answer` if the query can be answered
