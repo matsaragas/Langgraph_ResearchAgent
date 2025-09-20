@@ -10,6 +10,8 @@ import os
 from getpass import getpass
 from semantic_router.encoders import OpenAIEncoder
 
+pinecone_api_key = "pcsk_H2epd_TG1DQBuiFhb4wDQR9RmLv4QKLXmiHADH86QHfx5uJGCF52kvPMs1YRL6AEb8fEb"
+
 os.environ["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY") or getpass("OpenAI API key: ")
 
 encoder = OpenAIEncoder(name="text-embedding-3-small")
