@@ -274,6 +274,10 @@ def final_answer(
     - `sources`: a bulletpoint list provided detailed sources for all
     information referenced during the research process
     """
+    if type(research_steps) is list:
+        research_steps = "\n".join([f"- {r}" for r in research_steps])
+    if type(sources) in list:
+        sources = "\n".join([f"- {s}" for s in sources])
     return ""
 
 

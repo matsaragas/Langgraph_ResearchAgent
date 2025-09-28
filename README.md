@@ -1,4 +1,4 @@
-## LangGraph
+## LangGraph and Research Agents
 
 It is a LangChain's graph based agent 
 framework for building graph-based agents. It provides
