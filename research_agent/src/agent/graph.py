@@ -7,7 +7,6 @@ import serpapi
 from langchain_core.tools import tool
 import re
 import requests
-from dataclasses import dataclass, field
 from langchain_openai import ChatOpenAI
 import os
 from langchain_core.agents import AgentAction, AgentFinish
@@ -16,9 +15,9 @@ import time
 from semantic_router.encoders import OpenAIEncoder
 from tqdm.auto import tqdm
 from datasets import load_dataset
-from langchain_core.messages import BaseMessage
-import operator
-from settings import config
+from agent.settings import config
+from prompts import prompt
+from states import AgentState, InputState, OutputState
 
 
 def pinecone_index(index_name: str):
@@ -92,29 +91,6 @@ def format_rag_contexts(matches: list):
     context_str = "\n---\n".join(contexts)
     return context_str
 
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-
-system_prompt = """You are the oracle, the great AI decision maker.
-Given the user's query you must decide what to do with it based on the
-list of tools provided to you.
-
-If you see that a tool has been used (in the scratchpad) with a 
-particular query, do NOT use that same tool with the same query again. 
-Also, do NOT use any tool more than twice (ie, if the tool appears
-in the scratchpad twice, do not use it again).
-
-You should aim to collect information from a diverse range of sources 
-before providing the answer to the user. Once you have collected 
-plenty of information to answer the user's questions (stored in the 
-scratchpad) use the final_answer tool.
-"""
-
-prompt = ChatPromptTemplate.from_messages([
-    ("system", system_prompt),
-    MessagesPlaceholder(variable_name="chat_history"),
-    ("user", "{input}"),
-    ("assistant", "scratchpad: {scratchpad}")
-])
 
 
 @tool("fetch_arxiv")
@@ -289,62 +265,6 @@ def run_tool(state: list):
     )
     return {"intermediate_steps": [action_out]}
 
-
-# class Context(TypedDict):
-#     """Context parameters for the agent.
-#
-#     Set these when creating assistants OR when invoking the graph.
-#     See: https://langchain-ai.github.io/langgraph/cloud/how-tos/configuration_cloud/
-#     """
-#
-#     my_configurable_param: str
-#
-#
-# @dataclass
-# class State:
-#     """Input state for the agent.
-#
-#     Defines the initial structure of incoming data.
-#     See: https://langchain-ai.github.io/langgraph/concepts/low_level/#state
-#     """
-#
-#     changeme: str = "example"
-#
-#
-# async def call_model(state: State, runtime: Runtime[Context]) -> Dict[str, Any]:
-#     """Process input and returns output.
-#
-#     Can use runtime context to alter behavior.
-#     """
-#     return {
-#         "changeme": f"output from call_model."
-#                     f"Configured with {runtime.context.get('my_configurable_param')}"
-#     }
-#
-#
-# # Define the graph
-# graph = (
-#     StateGraph(State, context_schema=Context)
-#         .add_node(call_model)
-#         .add_edge("__start__", "call_model")
-#         .compile(name="New Graph")
-# )
-
-# from typing_extensions import TypedDict, Annotated, List, Union
-# from langchain_core.agents import AgentAction, AgentFinish
-# from langchain_core.messages import BaseMessage
-# import operator
-#
-class AgentState:
-    input: str = field(default=None)
-    chat_history: list[BaseMessage] = field(default=None)
-    itermediate_steps: Annotated[list[tuple[AgentAction, str]], operator.add]
-
-class InputState:
-    input: str = field(default=None)
-
-class OutputState:
-    itermediate_steps: Annotated[list[tuple[AgentAction, str]], operator.add]
 
 builder = StateGraph(AgentState, input=InputState, output=OutputState)
 

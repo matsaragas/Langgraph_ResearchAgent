@@ -11,6 +11,11 @@ requires-python = ">=3.9"
 dependencies = [
     "langgraph>=0.2.6",
     "python-dotenv>=1.0.1",
+    "serpapi==0.1.5",
+    "pinecone==7.3.0",
+    "semantic-router==0.1.11",
+    "datasets==4.1.1",
+    "langchain-openai==0.3.34"
 ]
 
 
