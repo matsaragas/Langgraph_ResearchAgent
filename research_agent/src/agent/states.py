@@ -6,14 +6,14 @@ import operator
 
 @dataclass
 class AgentState:
-    input: str = field(default=None)
-    chat_history: list[BaseMessage] = field(default=None)
-    intermediate_steps: Annotated[list[tuple[AgentAction, str]], operator.add] = field(default=None)
+    input: str | None = None
+    chat_history: List[BaseMessage] = field(default_factory=list)
+    intermediate_steps: Annotated[List[tuple[AgentAction, str]], operator.add] = field(default_factory=list)
 
 @dataclass
 class InputState:
-    input: str = field(default=None)
+    input: str | None = None
 
 @dataclass
 class OutputState:
-    intermediate_steps: Annotated[list[tuple[AgentAction, str]], operator.add] = field(default=None)
+    intermediate_steps: Annotated[List[tuple[AgentAction, str]], operator.add] = field(default_factory=list)

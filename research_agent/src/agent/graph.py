@@ -15,11 +15,15 @@ from agent.prompts import prompt
 from agent.states import AgentState, InputState, OutputState
 from agent.pinecone_db import PineconeOperations
 from agent.utils import create_scratchpad
+from agent.settings import config
 
 pc = PineconeOperations()
 index = pc.pinecone_load()
 
-
+serpapi_params = {
+    "engine": "google",
+    "api_key": config["serpapi_key"]
+}
 
 @tool("fetch_arxiv")
 def fetch_arxiv(arxiv_id: str):
@@ -38,7 +42,7 @@ def fetch_arxiv(arxiv_id: str):
 
 
 @tool("web_search")
-def web_search(query: str, serpapi_params: dict):
+def web_search(query: str):
     """Finds general knowledge information using Google Search. Can
     also be used to augment 'general' knowledge to a previous
     specialist query
@@ -48,7 +52,7 @@ def web_search(query: str, serpapi_params: dict):
         "q": query,
         "num": 5,
     })
-    results = search.get_dict()["organic_results"]
+    results = search["organic_results"]
     contexts = "\n---\n".join(
         ["\n".join([x["title"], x["snippet"], x["link"]]) for x in results]
     )
@@ -121,9 +125,9 @@ tools = [
 
 oracle = (
         {
-            "input": lambda x: x["input"],
-            "chat_history": lambda x: x["chat_history"],
-            "scratchpad": lambda x: create_scratchpad(intermediate_steps=x["intermediate_steps"])
+            "input": lambda x: x.input,
+            "chat_history": lambda x: x.chat_history,
+            "scratchpad": lambda x: create_scratchpad(intermediate_steps=x.intermediate_steps)
         }
         | prompt
         | llm.bind_tools(tools, tool_choice="any")
@@ -133,7 +137,7 @@ oracle = (
 
 def run_oracle(state: list):
     print("run oracle")
-    print(f"intermediate_steps: {state['intermediate_steps']}")
+    print(f"intermediate_steps: {state.intermediate_steps}")
     out = oracle.invoke(state)
     tool_name = out.tool_calls[0]["name"]
     tool_args = out.tool_calls[0]["args"]
@@ -148,14 +152,14 @@ def run_oracle(state: list):
 
 
 def router(state: list) -> Literal["rag_search_filter", "rag_search", "fetch_arxiv", "web_search", "final_answer"]:
-    if ininstance(state["intermediate_steps"], list):
-        if state["intermediate_steps"][-1].tool == "rag_search_filter":
+    if isinstance(state.intermediate_steps, list):
+        if state.intermediate_steps[-1].tool == "rag_search_filter":
             return "rag_search_filter"
-        elif state["intermediate_steps"][-1].tool == "rag_search":
+        elif state.intermediate_steps[-1].tool == "rag_search":
             return "rag_search"
-        elif state["intermediate_steps"][-1].tool == "fetch_arxiv":
+        elif state.intermediate_steps[-1].tool == "fetch_arxiv":
             return "fetch_arxiv"
-        elif state["intermediate_steps"][-1].tool == "web_search":
+        elif state.intermediate_steps[-1].tool == "web_search":
             return "web_search"
     else:
         print("Router invalid format")
@@ -171,8 +175,8 @@ tool_str_to_funct = {
 }
 
 def run_tool(state: list):
-    tool_name = state["intermediate_steps"][-1].tool
-    tool_args = state["intermediate_steps"][-1].tool_input
+    tool_name = state.intermediate_steps[-1].tool
+    tool_args = state.intermediate_steps[-1].tool_input
     print(f"{tool_name}.invoke(input={tool_args})")
     # run tool
     out = tool_str_to_funct[tool_name].invoke(input=tool_args)
