@@ -1,8 +1,12 @@
-## LangGraph and Research Agents
+## LangGraph and Research Agents with Langgraph Studio
 
 It is a LangChain's graph based agent 
 framework for building graph-based agents. It provides
 "fine-grained" controls over an agent's flow and state.
+
+![Alt text](pictures/langgraph_studio.png)
+
+
 
 ### State
 Agent state: It is a mutable object where we track the
@@ -171,7 +175,6 @@ for tool_obj in tools:
 graph.add_edge("final_answer", END)
 ```
 
-![Alt text](pictures/search_graph.png)
 
 
 ## Invoke the Graph
