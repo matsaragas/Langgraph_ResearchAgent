@@ -9,6 +9,7 @@ class AgentState:
     input: str | None = None
     chat_history: List[BaseMessage] = field(default_factory=list)
     intermediate_steps: Annotated[List[tuple[AgentAction, str]], operator.add] = field(default_factory=list)
+    output: str | None = None
 
 @dataclass
 class InputState:
@@ -16,4 +17,5 @@ class InputState:
 
 @dataclass
 class OutputState:
-    intermediate_steps: Annotated[List[tuple[AgentAction, str]], operator.add] = field(default_factory=list)
+    output: str | None = None
+    #intermediate_steps: Annotated[List[tuple[AgentAction, str]], operator.add] = field(default_factory=list)

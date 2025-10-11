@@ -16,9 +16,12 @@ from agent.states import AgentState, InputState, OutputState
 from agent.pinecone_db import PineconeOperations
 from agent.utils import create_scratchpad
 from agent.settings import config
+from semantic_router.encoders import OpenAIEncoder
 
 pc = PineconeOperations()
 index = pc.pinecone_load()
+
+encoder = OpenAIEncoder(name="text-embedding-3-small")
 
 serpapi_params = {
     "engine": "google",
@@ -102,9 +105,12 @@ def final_answer(
     - `sources`: a bulletpoint list provided detailed sources for all
     information referenced during the research process
     """
+    print("Execute Final Report")
+    print("Research Steps:", research_steps)
+    print("sources:", sources)
     if type(research_steps) is list:
         research_steps = "\n".join([f"- {r}" for r in research_steps])
-    if type(sources) in list:
+    if type(sources) is list:
         sources = "\n".join([f"- {s}" for s in sources])
     return ""
 
@@ -138,17 +144,20 @@ oracle = (
 def run_oracle(state: list):
     print("run oracle")
     print(f"intermediate_steps: {state.intermediate_steps}")
+    print(f"Input: {state.input}")
+    print(f"chat_histroy: {state.chat_history}")
     out = oracle.invoke(state)
     tool_name = out.tool_calls[0]["name"]
     tool_args = out.tool_calls[0]["args"]
+    print("Tool name:", tool_name)
+    print("tool args:", tool_args)
     action_out = AgentAction(
         tool=tool_name,
         tool_input=tool_args,
         log="TBD"
     )
-    return {
-        "intermediate_steps": [action_out]
-    }
+    print("")
+    return {"intermediate_steps": [action_out]}
 
 
 def router(state: list) -> Literal["rag_search_filter", "rag_search", "fetch_arxiv", "web_search", "final_answer"]:
@@ -161,6 +170,8 @@ def router(state: list) -> Literal["rag_search_filter", "rag_search", "fetch_arx
             return "fetch_arxiv"
         elif state.intermediate_steps[-1].tool == "web_search":
             return "web_search"
+        elif state.intermediate_steps[-1].tool == "final_answer":
+            return "final_answer"
     else:
         print("Router invalid format")
         return "final_answer"
@@ -188,6 +199,36 @@ def run_tool(state: list):
     return {"intermediate_steps": [action_out]}
 
 
+def build_report(state: list):
+    output = state.intermediate_steps[-1].tool_input
+    research_steps = output["research_steps"]
+    if type(research_steps) is list:
+        research_steps = "\n".join([f"- {r}" for r in research_steps])
+    sources = output["sources"]
+    if type(sources) is list:
+        sources = "\n".join([f"- {s}" for s in sources])
+    return {"output": f"""INTRODUCTION  \n\n 
+    ------------ \n\n {output["introduction"]}
+    
+    RESEARCH STEPS
+    --------------\n\n {research_steps}
+    
+    REPORT
+    ------ \n\n
+    {output["main_body"]}
+    
+    CONCLUSION
+    
+    ----------
+    {output["conclusion"]}
+    
+    SOURCES
+    -------
+    {sources}
+    """
+            }
+
+
 builder = StateGraph(AgentState, input=InputState, output=OutputState)
 
 builder.add_node("oracle", run_oracle)
@@ -196,11 +237,13 @@ builder.add_node("rag_search", run_tool)
 builder.add_node("fetch_arxiv", run_tool)
 builder.add_node("web_search", run_tool)
 builder.add_node("final_answer", run_tool)
+builder.add_node("build_report", build_report)
 builder.add_edge(START, "oracle")
 builder.add_conditional_edges("oracle", router)
 builder.add_edge("rag_search_filter", "oracle")
 builder.add_edge("rag_search", "oracle")
 builder.add_edge("fetch_arxiv", "oracle")
 builder.add_edge("web_search", "oracle")
-builder.add_edge("final_answer", END)
+builder.add_edge("final_answer", "build_report")
+builder.add_edge("build_report", END)
 graph = builder.compile(name="New Graph")
