@@ -4,7 +4,7 @@ It is a LangChain's graph based agent
 framework for building graph-based agents. It provides
 "fine-grained" controls over an agent's flow and state.
 
-![Alt text](pictures/langgraph_studio.png)
+![Alt text](pictures/langgraph_studio_v2.png)
 
 
 
